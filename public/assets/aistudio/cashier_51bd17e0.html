@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة تحكم الكاشير - مطعم وجزارة نجم</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #121212; color: #fff; margin: 0; padding: 15px; }
+        h2 { color: #ffc107; text-align: center; margin-bottom: 10px; }
+        
+        .shift-bar { background: #1e1e1e; border: 1px solid #333; padding: 12px; border-radius: 8px; display: flex; justify-content: space-around; margin-bottom: 15px; font-weight: bold; }
+        .shift-val { color: #28a745; font-size: 18px; display: block; margin-top: 3px; }
+
+        .dashboard-grid { display: grid; grid-template-columns: 1.2fr 1.2fr 0.8fr; gap: 15px; }
+        @media (max-width: 1200px) { .dashboard-grid { grid-template-columns: 1fr; } }
+
+        .panel { background: #1e1e1e; border: 1px solid #333; border-radius: 8px; padding: 12px; min-height: 500px; display: flex; flex-direction: column; }
+        .panel h3 { color: #ffc107; margin-top: 0; font-size: 15px; border-bottom: 1px solid #333; padding-bottom: 8px; }
+
+        .dept-bar { display: flex; gap: 5px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 8px; border-bottom: 1px solid #333; }
+        .dept-btn { background: #222; color: #fff; border: 1px solid #444; padding: 5px 10px; border-radius: 12px; white-space: nowrap; cursor: pointer; font-size: 11px; font-weight: bold; }
+        .dept-btn.active { background: #ffc107; color: #000; border-color: #ffc107; }
+
+        .items-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 6px; max-height: 380px; overflow-y: auto; flex: 1; }
+        .item-card { background: #252525; border: 1px solid #3d3d3d; border-radius: 6px; padding: 6px; text-align: center; display: flex; flex-direction: column; justify-content: space-between; }
+        .item-name { font-size: 11px; font-weight: bold; margin-bottom: 2px; }
+        .item-price { color: #28a745; font-size: 11px; font-weight: bold; margin-bottom: 4px; }
+        .btn-qty { background: #ffc107; color: #000; border: none; width: 22px; height: 22px; border-radius: 50%; font-weight: bold; cursor: pointer; font-size: 13px; }
+
+        .orders-container { overflow-y: auto; max-height: 550px; display: flex; flex-direction: column; gap: 10px; }
+        .order-card { background: #252525; border: 1px solid #333; border-radius: 6px; padding: 10px; border-right: 4px solid #ffc107; }
+        .status-badge { padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; }
+        .status-pending { background: #dc3545; color: #fff; }
+        .status-ready { background: #ffc107; color: #000; }
+        .status-on_the_way { background: #17a2b8; color: #fff; }
+
+        .items-preview { background: #151515; border-radius: 4px; padding: 5px; margin: 5px 0; font-size: 11px; max-height: 80px; overflow-y: auto; }
+        .item-preview-row { display: flex; justify-content: space-between; border-bottom: 1px dashed #333; padding: 2px 0; }
+
+        .tables-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+        .table-box { background: #28a745; border-radius: 6px; padding: 10px; text-align: center; font-weight: bold; font-size: 13px; }
+        .table-box.busy { background: #dc3545; }
+
+        .btn-pay { background: #28a745; color: #fff; border: none; padding: 8px; border-radius: 4px; font-weight: bold; cursor: pointer; width: 100%; margin-top: 5px; font-size: 12px; }
+        .btn-action { background: #333; color: #fff; border: 1px solid #555; padding: 4px 6px; border-radius: 4px; font-size: 10px; cursor: pointer; margin-top: 4px; }
+
+        #receiptPrintArea { display: none; }
+        @media print {
+            body * { visibility: hidden !important; }
+            #receiptPrintArea, #receiptPrintArea * { visibility: visible !important; }
+            #receiptPrintArea { display: block !important; position: absolute; left: 0; top: 0; width: 72mm; color: #000 !important; background: #fff !important; font-family: 'Courier New', Courier, monospace; padding: 3mm; font-size: 11px; }
+            .logo-img { max-width: 40mm; max-height: 20mm; display: block; margin: 0 auto 5px auto; object-fit: contain; }
+        }
+    </style>
+</head>
+<body>
+
+    <h2>💻 لوحة تحكم الكاشير - مطعم وجزارة نجم</h2>
+
+    <div class="shift-bar">
+        <div>مبيعات الشيفت: <span class="shift-val" id="shiftTotal">0.00 ج.م</span></div>
+        <div>الشيكات المحصلة: <span class="shift-val" id="shiftCount" style="color:#ffc107;">0</span></div>
+    </div>
+
+    <div class="dashboard-grid">
+        <!-- 1. انشاء اوردر جديد والمنيو -->
+        <div class="panel">
+            <h3>➕ إنشاء أوردر جديد (صالة / تيك أواي / ديليفري)</h3>
+            
+            <div style="display:flex; gap:8px; margin-bottom:8px;">
+                <select id="orderType" style="flex:1; padding:6px; border-radius:4px; background:#222; color:#fff; border:1px solid #444;" onchange="toggleTableInput()">
+                    <option value="hall">🍽️ صالة</option>
+                    <option value="takeaway">🛍️ تيك أواي</option>
+                    <option value="delivery">🛵 ديليفري</option>
+                </select>
+                <input type="number" id="tableNum" placeholder="الطاولة" value="1" style="width:70px; padding:6px; border-radius:4px; background:#222; color:#fff; border:1px solid #444;">
+            </div>
+
+            <div style="margin-bottom:8px;">
+                <select id="captainSelect" style="width:100%; padding:6px; border-radius:4px; background:#222; color:#ffc107; border:1px solid #444; font-weight:bold;">
+                    <option value="">-- كابتن الصالة أو الكاشير مباشر --</option>
+                </select>
+            </div>
+
+            <!-- أقسام المنيو -->
+            <div class="dept-bar" id="deptContainer"></div>
+            <!-- كروت أصناف المنيو -->
+            <div class="items-grid" id="menuContainer"></div>
+
+            <div style="margin-top:10px; background:#151515; padding:8px; border-radius:4px; display:flex; justify-content:space-between; align-items:center;">
+                <div>الإجمالي: <span id="cartTotal" style="color:#28a745; font-weight:bold; font-size:15px;">0.00 ج.م</span></div>
+                <button onclick="submitCashierOrder()" style="background:#28a745; color:#fff; border:none; padding:6px 12px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:12px;">إرسال الأوردر 🚀</button>
+            </div>
+        </div>
+
+        <!-- 2. متابعة الطلبات النشطة والأونلاين والديليفري -->
+        <div class="panel">
+            <h3>⏳ الطلبات النشطة والأونلاين والديليفري</h3>
+            <div class="orders-container" id="ordersContainer"></div>
+        </div>
+
+        <!-- 3. مراقبة الطاولات -->
+        <div class="panel">
+            <h3>🪑 مراقبة طاولات الصالة</h3>
+            <div class="tables-grid" id="tablesMonitor"></div>
+        </div>
+    </div>
+
+    <!-- طباعة الفاتورة -->
+    <div id="receiptPrintArea">
+        <img src="/static/logo.jpg" alt="Logo" class="logo-img">
+        <div style="text-align:center; border-bottom:1px dashed #000; padding-bottom:5px; margin-bottom:5px;">
+            <h3 style="margin:0; font-size:14px;">مطعم وجزارة نجم</h3>
+            <p id="rDate" style="margin:2px 0; font-size:9px;"></p>
+        </div>
+        <div style="background:#000; color:#fff; text-align:center; font-weight:bold; padding:2px 0; font-size:12px;" id="rSerial">INV-000000</div>
+        <div style="font-size:10px; margin:3px 0;"><span>الطلب: </span><span id="rOrderId" style="font-weight:bold;"></span></div>
+        <div style="font-size:10px; margin:3px 0;"><span>النوع/الطاولة: </span><span id="rTable"></span></div>
+        <div style="font-size:10px; margin:3px 0;"><span>المسئول/الطيار: </span><span id="rCaptain"></span></div>
+        <hr style="border:none; border-top:1px dashed #000; margin:4px 0;">
+        <table style="width:100%; border-collapse:collapse; font-size:10px; text-align:right;">
+            <thead><tr><th>الصنف</th><th style="text-align:center;">العدد</th><th style="text-align:left;">السعر</th></tr></thead>
+            <tbody id="rItemsList"></tbody>
+        </table>
+        <hr style="border:none; border-top:1px dashed #000; margin:4px 0;">
+        <div style="font-weight:bold; font-size:12px; display:flex; justify-content:space-between;">
+            <span>الإجمالي:</span><span id="rTotal"></span>
+        </div>
+    </div>
+
+    <script>
+        let menuItems = [];
+        let selectedDept = 'الكل';
+        let cashierCart = {};
+        let globalOrders = [];
+        let busyTablesMap = {};
+
+        async function initDashboard() {
+            await fetchCaptains();
+            await loadMenu();
+            await refreshData();
+            setInterval(refreshData, 3000);
+        }
+
+        async function fetchCaptains() {
+            try {
+                const res = await fetch('/api/captains');
+                const captains = await res.json();
+                const sel = document.getElementById('captainSelect');
+                sel.innerHTML = '<option value="">-- كابتن الصالة أو الكاشير مباشر --</option>';
+                captains.forEach(c => {
+                    sel.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+                });
+            } catch (err) { console.error(err); }
+        }
+
+        async function loadMenu() {
+            try {
+                const res = await fetch('/api/items');
+                menuItems = await res.json();
+                const depts = ['الكل', ...new Set(menuItems.map(i => i.department || 'عام'))];
+                const deptContainer = document.getElementById('deptContainer');
+                deptContainer.innerHTML = '';
+                depts.forEach(d => {
+                    deptContainer.innerHTML += `<div class="dept-btn ${d === selectedDept ? 'active' : ''}" onclick="filterDept('${d}')">${d}</div>`;
+                });
+                renderMenu();
+            } catch (err) { console.error(err); }
+        }
+
+        function filterDept(dept) {
+            selectedDept = dept;
+            document.querySelectorAll('.dept-btn').forEach(b => b.classList.toggle('active', b.innerText === dept));
+            renderMenu();
+        }
+
+        function renderMenu() {
+            const container = document.getElementById('menuContainer');
+            container.innerHTML = '';
+            const filtered = selectedDept === 'الكل' ? menuItems : menuItems.filter(i => (i.department || 'عام') === selectedDept);
+            
+            if (filtered.length === 0) {
+                container.innerHTML = '<p style="color:#888; font-size:11px;">لا توجد أصناف متاحة.</p>';
+                return;
+            }
+
+            filtered.forEach(item => {
+                const qty = cashierCart[item.id] ? cashierCart[item.id].qty : 0;
+                container.innerHTML += `
+                    <div class="item-card">
+                        <div class="item-name">${item.name}</div>
+                        <div class="item-price">${parseFloat(item.price).toFixed(2)} ج.م</div>
+                        <div>
+                            <button class="btn-qty" onclick="changeCartQty(${item.id}, -1)">-</button>
+                            <span style="font-weight:bold; margin:0 3px; font-size:11px;">${qty}</span>
+                            <button class="btn-qty" onclick="changeCartQty(${item.id}, 1)">+</button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function changeCartQty(itemId, delta) {
+            const item = menuItems.find(i => i.id === itemId);
+            if (!item) return;
+            if (!cashierCart[itemId]) {
+                cashierCart[itemId] = { id: item.id, name: item.name, price: item.price, qty: 0 };
+            }
+            cashierCart[itemId].qty += delta;
+            if (cashierCart[itemId].qty <= 0) delete cashierCart[itemId];
+
+            let total = 0;
+            Object.values(cashierCart).forEach(i => total += i.price * i.qty);
+            document.getElementById('cartTotal').innerText = total.toFixed(2) + ' ج.م';
+            renderMenu();
+        }
+
+        function toggleTableInput() {
+            const type = document.getElementById('orderType').value;
+            document.getElementById('tableNum').style.display = type === 'hall' ? 'block' : 'none';
+        }
+
+        async function submitCashierOrder() {
+            const itemsList = Object.values(cashierCart);
+            if (itemsList.length === 0) { alert('اختر صنفاً واحداً على الأقل!'); return; }
+
+            const type = document.getElementById('orderType').value;
+            const tNum = type === 'hall' ? (parseInt(document.getElementById('tableNum').value) || 1) : 0;
+            const sel = document.getElementById('captainSelect');
+            const capId = sel.value;
+            const capName = sel.value ? sel.options[sel.selectedIndex].text : 'الكاشير / مباشر';
+
+            try {
+                const res = await fetch('/api/submit-order', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        order_type: type,
+                        table_num: tNum,
+                        captain_id: capId,
+                        captain_name: capName,
+                        items: itemsList
+                    })
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    alert('تم إنشاء وإرسال الأوردر بنجاح!');
+                    cashierCart = {};
+                    document.getElementById('cartTotal').innerText = '0.00 ج.م';
+                    renderMenu();
+                    refreshData();
+                } else { alert(data.message); }
+            } catch (err) { alert('خطأ في السيرفر'); }
+        }
+
+        async function refreshData() {
+            await fetchOrders();
+            await fetchActiveTables();
+            await fetchShiftSummary();
+        }
+
+        async function fetchShiftSummary() {
+            try {
+                const res = await fetch('/api/shift-summary');
+                const data = await res.json();
+                document.getElementById('shiftTotal').innerText = (data.total_sales || 0).toFixed(2) + ' ج.م';
+                document.getElementById('shiftCount').innerText = data.paid_count || 0;
+            } catch (err) { console.error(err); }
+        }
+
+        async function fetchOrders() {
+            try {
+                const res = await fetch('/api/orders');
+                globalOrders = await res.json();
+                const container = document.getElementById('ordersContainer');
+                
+                if (globalOrders.length === 0) {
+                    container.innerHTML = '<p style="color:#888; font-size:12px;">لا توجد طلبات مفتوحة حالياً.</p>';
+                    return;
+                }
+
+                container.innerHTML = '';
+                globalOrders.forEach(ord => {
+                    let itemsHtml = '';
+                    if (ord.items) {
+                        ord.items.forEach((item, index) => {
+                            itemsHtml += `
+                                <div class="item-preview-row">
+                                    <span>${item.name} (${item.qty}x)</span>
+                                    <div>
+                                        <span style="color:#28a745; margin-left:4px;">${(item.price * item.qty).toFixed(2)}</span>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                    }
+
+                    let infoText = ord.captain_name || 'الكاشير';
+                    let mapBtn = '';
+                    if (infoText.includes('http')) {
+                        const parts = infoText.split(' - الخريطة: ');
+                        infoText = parts[0];
+                        if (parts[1]) {
+                            mapBtn = `<a href="${parts[1]}" target="_blank" style="background:#17a2b8; color:#fff; padding:2px 6px; border-radius:3px; text-decoration:none; font-size:10px; margin-right:4px;">📍 الخريطة</a>`;
+                        }
+                    }
+
+                    let statusText = '👨‍🍳 بالمطبخ';
+                    let statusClass = 'status-pending';
+                    if (ord.order_status === 'ready') { statusText = '✅ جاهز'; statusClass = 'status-ready'; }
+                    if (ord.order_status === 'on_the_way') { statusText = '🛵 مع الطيار'; statusClass = 'status-on_the_way'; }
+
+                    container.innerHTML += `
+                        <div class="order-card">
+                            <div class="order-header">
+                                <span style="font-size:12px;">طلب #${ord.id} (${ord.order_type === 'hall' ? 'طاولة ' + ord.table_num : ord.order_type})</span>
+                                <span class="status-badge ${statusClass}">${statusText}</span>
+                            </div>
+                            <div style="font-size:11px; color:#aaa; margin-top:3px;">المسئول/العميل: ${infoText} ${mapBtn}</div>
+                            
+                            ${ord.order_type === 'delivery' ? `
+                                <div style="margin-top:4px; display:flex; gap:4px; align-items:center;">
+                                    <input type="text" id="driver-${ord.id}" placeholder="اسم الطيار" value="${ord.driver_name || ''}" style="padding:3px; border-radius:3px; background:#111; color:#fff; border:1px solid #444; font-size:10px; flex:1;">
+                                    <button class="btn-action" onclick="setDriver(${ord.id}, 'ready')">جاهز</button>
+                                    <button class="btn-action" onclick="setDriver(${ord.id}, 'on_the_way')" style="background:#17a2b8;">للتحصيل</button>
+                                </div>
+                            ` : ''}
+
+                            <div class="items-preview">${itemsHtml}</div>
+                            <div style="font-size:13px; color:#28a745; font-weight:bold; margin:4px 0;">الإجمالي: ${parseFloat(ord.total_amount).toFixed(2)} ج.م</div>
+                            <button class="btn-pay" onclick="payAndPrint(${ord.id})">💵 تحصيل وطباعة الشيك</button>
+                        </div>
+                    `;
+                });
+            } catch (err) { console.error(err); }
+        }
+
+        async function fetchActiveTables() {
+            try {
+                const res = await fetch('/api/active-tables');
+                const data = await res.json();
+                busyTablesMap = data.busy_tables || {};
+                
+                const container = document.getElementById('tablesMonitor');
+                container.innerHTML = '';
+                for (let i = 1; i <= 12; i++) {
+                    const busy = busyTablesMap[i];
+                    container.innerHTML += `
+                        <div class="table-box ${busy ? 'busy' : ''}">
+                            طاولة ${i}
+                            <div style="font-size:10px; font-weight:normal;">${busy ? busy.captain_name : 'فارغة'}</div>
+                        </div>
+                    `;
+                }
+            } catch (err) { console.error(err); }
+        }
+
+        async function setDriver(orderId, status) {
+            const driverName = document.getElementById(`driver-${orderId}`).value;
+            await fetch('/api/orders/update-status', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ order_id: orderId, order_status: status, driver_name: driverName })
+            });
+            refreshData();
+        }
+
+        async function payAndPrint(orderId) {
+            const ord = globalOrders.find(o => o.id === orderId);
+            if (!ord) return;
+            if (!confirm(`تحصيل وإغلاق طلب #${orderId}؟`)) return;
+
+            const res = await fetch('/api/pay-order', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ order_id: orderId })
+            });
+            const result = await res.json();
+            if (result.status === 'success') {
+                document.getElementById('rSerial').innerText = 'INV-' + String(orderId).padStart(6, '0');
+                document.getElementById('rOrderId').innerText = '#' + orderId;
+                document.getElementById('rTable').innerText = ord.order_type === 'hall' ? 'صالة - طاولة ' + ord.table_num : ord.order_type;
+                document.getElementById('rCaptain').innerText = ord.driver_name ? 'الطيار: ' + ord.driver_name : (ord.captain_name || 'الكاشير');
+                document.getElementById('rTotal').innerText = parseFloat(ord.total_amount).toFixed(2) + ' ج.م';
+                document.getElementById('rDate').innerText = new Date().toLocaleString('ar-EG');
+
+                const itemsContainer = document.getElementById('rItemsList');
+                itemsContainer.innerHTML = '';
+                if (ord.items) {
+                    ord.items.forEach(item => {
+                        const p = parseFloat(item.price || 0), q = parseInt(item.qty || 1);
+                        itemsContainer.innerHTML += `
+                            <tr>
+                                <td>${item.name}</td>
+                                <td style="text-align:center;">${q}</td>
+                                <td style="text-align:left;">${(p*q).toFixed(2)}</td>
+                            </tr>
+                        `;
+                    });
+                }
+                setTimeout(() => { window.print(); refreshData(); }, 300);
+            }
+        }
+
+        window.onload = initDashboard;
+    </script>
+</body>
+</html>

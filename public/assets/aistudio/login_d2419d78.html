@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تسجيل الدخول - مطعم وجزارة نجم</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #121212; color: #fff; margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .login-card { background: #1e1e1e; border: 1px solid #333; border-radius: 10px; padding: 30px; width: 90%; max-width: 380px; box-shadow: 0 8px 20px rgba(0,0,0,0.6); text-align: center; }
+        h2 { color: #ffc107; margin-bottom: 20px; font-size: 20px; }
+        label { display: block; text-align: right; color: #ffc107; font-weight: bold; margin-top: 12px; font-size: 13px; }
+        input, select { width: 100%; padding: 10px; margin-top: 5px; border-radius: 6px; border: 1px solid #444; background: #222; color: #fff; box-sizing: border-box; font-size: 14px; }
+        .btn-login { background: #28a745; color: #fff; border: none; padding: 12px; border-radius: 6px; font-weight: bold; width: 100%; margin-top: 20px; font-size: 15px; cursor: pointer; }
+        .error-msg { color: #dc3545; font-size: 13px; margin-top: 10px; display: none; }
+    </style>
+</head>
+<body>
+
+    <div class="login-card">
+        <h2>🥩 مطعم وجزارة نجم</h2>
+        <p style="color:#aaa; font-size:12px; margin-bottom:15px;">تسجيل الدخول إلى النظام POS</p>
+
+        <form id="loginForm" onsubmit="handleLogin(event)">
+            <label>اسم المستخدم / الهاتف:</label>
+            <input type="text" id="username" placeholder="أدخل اسم المستخدم" required>
+
+            <label>كلمة السر / الـ PIN:</label>
+            <input type="password" id="password" placeholder="أدخل كلمة السر" required>
+
+            <button type="submit" class="btn-login">تسجيل الدخول 🚀</button>
+            <div id="errMsg" class="error-msg"></div>
+        </form>
+    </div>
+
+    <script>
+        async function handleLogin(e) {
+            e.preventDefault();
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value.trim();
+            const errMsg = document.getElementById('errMsg');
+
+            try {
+                const res = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    window.location.href = data.redirect;
+                } else {
+                    errMsg.innerText = data.message;
+                    errMsg.style.display = 'block';
+                }
+            } catch (err) {
+                errMsg.innerText = 'خطأ في الاتصال بالسيرفر';
+                errMsg.style.display = 'block';
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تطبيق مطعم وجزارة نجم</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #121212; color: #fff; margin: 0; padding: 15px; }
+        h2 { color: #ffc107; text-align: center; margin-bottom: 10px; }
+
+        .wallet-card { background: linear-gradient(135deg, #1e1e1e, #2a2a2a); border: 1px solid #ffc107; border-radius: 10px; padding: 12px 15px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
+        .wallet-title { color: #aaa; font-size: 11px; }
+        .wallet-pts { color: #ffc107; font-size: 18px; font-weight: bold; }
+
+        .client-info-box { background: #1e1e1e; border: 1px solid #333; border-radius: 8px; padding: 12px; margin-bottom: 15px; }
+        label { display: block; color: #ffc107; font-weight: bold; margin-top: 6px; font-size: 12px; }
+        input, textarea { width: 100%; padding: 8px; margin-top: 3px; border-radius: 5px; border: 1px solid #444; background: #222; color: #fff; box-sizing: border-box; }
+
+        .btn-group { display: flex; gap: 8px; margin-top: 10px; }
+        .btn-gps { background: #17a2b8; color: #fff; border: none; padding: 8px; border-radius: 5px; font-weight: bold; cursor: pointer; flex: 1; font-size: 11px; }
+        .btn-map { background: #ffc107; color: #000; border: none; padding: 8px; border-radius: 5px; font-weight: bold; cursor: pointer; flex: 1; font-size: 11px; }
+
+        #mapModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; justify-content: center; align-items: center; }
+        .map-container { background: #1e1e1e; width: 90%; max-width: 600px; padding: 15px; border-radius: 8px; border: 1px solid #444; text-align: center; }
+        #map { width: 100%; height: 320px; border-radius: 6px; margin: 10px 0; }
+
+        .dept-bar { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 12px; border-bottom: 1px solid #333; }
+        .dept-btn { background: #222; color: #fff; border: 1px solid #444; padding: 5px 12px; border-radius: 15px; white-space: nowrap; cursor: pointer; font-size: 11px; font-weight: bold; }
+        .dept-btn.active { background: #ffc107; color: #000; border-color: #ffc107; }
+
+        .items-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; margin-bottom: 110px; }
+        .item-card { background: #1e1e1e; border: 1px solid #333; border-radius: 8px; padding: 8px; text-align: center; display: flex; flex-direction: column; justify-content: space-between; }
+        .item-name { font-size: 13px; font-weight: bold; margin-bottom: 3px; }
+        .item-price { color: #28a745; font-size: 12px; font-weight: bold; margin-bottom: 6px; }
+
+        .btn-qty { background: #ffc107; color: #000; border: none; width: 26px; height: 26px; border-radius: 50%; font-weight: bold; cursor: pointer; }
+
+        .cart-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #1e1e1e; border-top: 2px solid #ffc107; padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 -4px 10px rgba(0,0,0,0.5); z-index: 1000; }
+        .btn-send { background: #28a745; color: #fff; border: none; padding: 10px 15px; border-radius: 6px; font-weight: bold; font-size: 13px; cursor: pointer; }
+    </style>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body>
+
+    <h2>🥩 مطعم وجزارة نجم - طلب أونلاين</h2>
+
+    <div class="wallet-card">
+        <div>
+            <div class="wallet-title">نقاط الولاء المتاحة</div>
+            <div class="wallet-pts" id="ptsDisplay">0 نقطة</div>
+        </div>
+        <div style="text-align:left;">
+            <div class="wallet-title">قيمة الخصم المستحق</div>
+            <div style="color:#28a745; font-weight:bold; font-size:15px;" id="ptsEgpDisplay">0.00 ج.م</div>
+        </div>
+    </div>
+
+    <div class="client-info-box">
+        <label>رقم الموبايل:</label>
+        <input type="tel" id="custPhone" placeholder="01xxxxxxxxx" onchange="authCustomer()">
+        
+        <label>الاسم بالكامل:</label>
+        <input type="text" id="custName" placeholder="أدخل اسمك الكريم">
+
+        <label>العنوان التفصيلي:</label>
+        <textarea id="custAddress" rows="2" placeholder="المنطقة - الشارع - رقم العمارة"></textarea>
+
+        <div class="btn-group">
+            <button class="btn-gps" onclick="getDeviceLocation()">📍 موقعي الحالي (GPS)</button>
+            <button class="btn-map" onclick="openMapModal()">🗺️ تحديد الخريطة</button>
+        </div>
+        <div id="gpsStatus" style="font-size: 11px; color: #ffc107; margin-top: 4px; text-align: center;"></div>
+
+        <div style="margin-top:8px; display:flex; align-items:center; gap:6px;">
+            <input type="checkbox" id="usePointsChk" onchange="updateCartTotal()" style="width:auto;">
+            <label for="usePointsChk" style="margin:0; color:#28a745; cursor:pointer;">استخدام النقاط للخصم</label>
+        </div>
+    </div>
+
+    <div id="mapModal">
+        <div class="map-container">
+            <h3 style="color:#ffc107; margin:0 0 5px 0; font-size:15px;">اختر مكان الاستلام</h3>
+            <div id="map"></div>
+            <button style="background:#28a745; color:#fff; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer;" onclick="confirmMapLocation()">تأكيد الموقع ✅</button>
+            <button onclick="closeMapModal()" style="background:#dc3545; color:#fff; border:none; padding:8px 15px; border-radius:4px; margin-right:5px; cursor:pointer;">إلغاء</button>
+        </div>
+    </div>
+
+    <div style="color:#ffc107; font-weight:bold; margin-bottom:5px; font-size:13px;">الوجبات والمنيو:</div>
+    <div class="dept-bar" id="deptContainer"></div>
+    <div class="items-grid" id="menuContainer"></div>
+
+    <div class="cart-bar">
+        <div>
+            <div style="font-size:11px;">الوجبات: <span id="itemsTotal">0.00</span> ج.م</div>
+            <div style="font-size: 11px; color: #17a2b8;">خدمة توصيل: <span id="deliveryFee">0.00</span> ج.م</div>
+            <div style="font-size: 11px; color: #dc3545;">خصم نقاط: -<span id="discountFee">0.00</span> ج.م</div>
+            <div style="font-weight: bold; color: #28a745; font-size: 15px;">الإجمالي: <span id="grandTotal">0.00</span> ج.م</div>
+        </div>
+        <button class="btn-send" onclick="sendCustomerOrder()">إرسال الطلب 🛵</button>
+    </div>
+
+    <script>
+        const RESTAURANT_LAT = 30.0825319, RESTAURANT_LNG = 31.2114144, PRICE_PER_KM_ROUND_TRIP = 4.0;
+        let customerId = null, customerLat = null, customerLng = null, deliveryFee = 0.0, availablePtsEgp = 0.0;
+        let menuItems = [], selectedDept = 'الكل', orderCart = {};
+        let map = null, marker = null, selectedLat = 30.0444, selectedLng = 31.2357;
+
+        async function initCustomerPage() { await loadMenu(); }
+
+        async function authCustomer() {
+            const phone = document.getElementById('custPhone').value.trim();
+            const name = document.getElementById('custName').value.trim();
+            if(!phone) return;
+            const res = await fetch('/api/customer/auth', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ phone, name })
+            });
+            const data = await res.json();
+            if(data.status === 'success') {
+                customerId = data.customer.id;
+                document.getElementById('ptsDisplay').innerText = data.customer.active_points + ' نقطة';
+                document.getElementById('ptsEgpDisplay').innerText = data.customer.points_value_egp.toFixed(2) + ' ج.م';
+                availablePtsEgp = data.customer.points_value_egp;
+                updateCartTotal();
+            }
+        }
+
+        function getDeviceLocation() {
+            navigator.geolocation.getCurrentPosition(
+                p => { customerLat = p.coords.latitude; customerLng = p.coords.longitude; calculateAndApplyFee(customerLat, customerLng, 'GPS'); },
+                e => { alert('تعذر جلب موقع الـ GPS'); }
+            );
+        }
+
+        function openMapModal() {
+            document.getElementById('mapModal').style.display = 'flex';
+            setTimeout(() => {
+                if(!map) {
+                    map = L.map('map').setView([selectedLat, selectedLng], 11);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+                    marker = L.marker([selectedLat, selectedLng], {draggable: true}).addTo(map);
+                    marker.on('dragend', () => { const p = marker.getLatLng(); selectedLat = p.lat; selectedLng = p.lng; });
+                    map.on('click', e => { selectedLat = e.latlng.lat; selectedLng = e.latlng.lng; marker.setLatLng([selectedLat, selectedLng]); });
+                } else map.invalidateSize();
+            }, 200);
+        }
+
+        function closeMapModal() { document.getElementById('mapModal').style.display = 'none'; }
+        function confirmMapLocation() { customerLat = selectedLat; customerLng = selectedLng; closeMapModal(); calculateAndApplyFee(customerLat, customerLng, 'الخريطة'); }
+
+        function calculateAndApplyFee(lat, lng, src) {
+            const R = 6371;
+            const dLat = (lat - RESTAURANT_LAT) * Math.PI / 180, dLon = (lng - RESTAURANT_LNG) * Math.PI / 180;
+            const a = Math.sin(dLat/2)**2 + Math.cos(RESTAURANT_LAT*Math.PI/180) * Math.cos(lat*Math.PI/180) * Math.sin(dLon/2)**2;
+            const km = R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
+            deliveryFee = Math.max(20.0, Math.round(km * 2 * PRICE_PER_KM_ROUND_TRIP));
+            document.getElementById('deliveryFee').innerText = deliveryFee.toFixed(2);
+            document.getElementById('gpsStatus').innerText = `✅ موقع ${src} | المسافة: ${km.toFixed(1)} كم | خدمة التوصيل: ${deliveryFee} ج.م`;
+            updateCartTotal();
+        }
+
+        async function loadMenu() {
+            try {
+                const res = await fetch('/api/items'); 
+                menuItems = await res.json();
+                const depts = ['الكل', ...new Set(menuItems.map(i => i.department || 'عام'))];
+                const deptContainer = document.getElementById('deptContainer'); 
+                deptContainer.innerHTML = '';
+                depts.forEach(d => { 
+                    deptContainer.innerHTML += `<div class="dept-btn ${d === selectedDept ? 'active' : ''}" onclick="filterDept('${d}')">${d}</div>`; 
+                });
+                renderFilteredItems();
+            } catch(e) { console.error(e); }
+        }
+
+        function filterDept(d) { selectedDept = d; document.querySelectorAll('.dept-btn').forEach(b => b.classList.toggle('active', b.innerText === d)); renderFilteredItems(); }
+
+        function renderFilteredItems() {
+            const container = document.getElementById('menuContainer'); 
+            container.innerHTML = '';
+            const filtered = selectedDept === 'الكل' ? menuItems : menuItems.filter(i => (i.department || 'عام') === selectedDept);
+            
+            if (filtered.length === 0) {
+                container.innerHTML = '<p style="color:#888;">لا توجد أصناف متاحة.</p>';
+                return;
+            }
+
+            filtered.forEach(item => {
+                const qty = orderCart[item.id] ? orderCart[item.id].qty : 0;
+                container.innerHTML += `
+                    <div class="item-card">
+                        <div class="item-name">${item.name}</div>
+                        <div class="item-price">${parseFloat(item.price).toFixed(2)} ج.م</div>
+                        <div>
+                            <button class="btn-qty" onclick="changeQty(${item.id}, -1)">-</button>
+                            <span style="font-weight:bold; margin:0 4px;" id="qty-${item.id}">${qty}</span>
+                            <button class="btn-qty" onclick="changeQty(${item.id}, 1)">+</button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function changeQty(id, delta) {
+            const item = menuItems.find(i => i.id === id); if(!item) return;
+            if(!orderCart[id]) orderCart[id] = { id: item.id, name: item.name, price: item.price, qty: 0 };
+            orderCart[id].qty += delta;
+            if(orderCart[id].qty <= 0) delete orderCart[id];
+            updateCartTotal(); renderFilteredItems();
+        }
+
+        function updateCartTotal() {
+            let itemsTotal = 0;
+            Object.values(orderCart).forEach(i => itemsTotal += i.price * i.qty);
+            let discount = 0.0;
+            if(document.getElementById('usePointsChk').checked) {
+                discount = Math.min(itemsTotal + deliveryFee, availablePtsEgp);
+            }
+            document.getElementById('itemsTotal').innerText = itemsTotal.toFixed(2);
+            document.getElementById('discountFee').innerText = discount.toFixed(2);
+            document.getElementById('grandTotal').innerText = Math.max(0, itemsTotal + deliveryFee - discount).toFixed(2);
+        }
+
+        async function sendCustomerOrder() {
+            const name = document.getElementById('custName').value.trim();
+            const phone = document.getElementById('custPhone').value.trim();
+            const address = document.getElementById('custAddress').value.trim();
+            const itemsList = Object.values(orderCart);
+
+            if(!name || !phone || !address) { alert('أدخل بياناتك كاملة!'); return; }
+            if(itemsList.length === 0) { alert('اختر وجبة واحدة على الأقل!'); return; }
+
+            let mapLink = customerLat && customerLng ? `https://www.google.com/maps?q=${customerLat},${customerLng}` : '';
+            if(deliveryFee > 0) itemsList.push({ name: 'خدمة توصيل', price: deliveryFee, qty: 1 });
+
+            const res = await fetch('/api/submit-order', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    order_type: 'delivery', table_num: 0,
+                    captain_name: `عميل: ${name} (${phone}) - العنوان: ${address} ${mapLink ? ' - الخريطة: ' + mapLink : ''}`,
+                    customer_id: customerId,
+                    use_points: document.getElementById('usePointsChk').checked,
+                    items: itemsList
+                })
+            });
+            const data = await res.json();
+            if(data.status === 'success') {
+                alert('تم إرسال طلبك بنجاح!');
+                orderCart = {}; updateCartTotal(); renderFilteredItems();
+                authCustomer();
+            }
+        }
+
+        window.onload = initCustomerPage;
+    </script>
+</body>
+</html>

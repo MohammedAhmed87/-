@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة الإدارة والتحكم - مطعم وجزارة نجم</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #121212; color: #fff; margin: 0; padding: 20px; }
+        h2 { color: #ffc107; text-align: center; margin-bottom: 20px; }
+
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #333; flex-wrap: wrap; }
+        .tab-btn { padding: 12px 18px; background: #222; color: #fff; border: none; border-radius: 6px 6px 0 0; cursor: pointer; font-weight: bold; font-size: 14px; }
+        .tab-btn.active { background: #ffc107; color: #000; }
+
+        .tab-content { display: none; background: #1e1e1e; padding: 20px; border-radius: 8px; border: 1px solid #333; }
+        .tab-content.active { display: block; }
+
+        label { display: block; margin-top: 10px; font-weight: bold; color: #ffc107; }
+        input, select { width: 100%; padding: 8px; margin-top: 5px; border-radius: 5px; border: 1px solid #444; background: #222; color: #fff; box-sizing: border-box; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { border: 1px solid #333; padding: 10px; text-align: center; }
+        th { background: #222; color: #ffc107; }
+
+        .btn-save { background: #28a745; color: #fff; border: none; padding: 10px 20px; border-radius: 5px; font-weight: bold; cursor: pointer; margin-top: 15px; font-size: 15px; }
+    </style>
+</head>
+<body>
+
+    <h2>⭐ لوحة الإدارة والتحكم - مطعم وجزارة نجم</h2>
+
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('kpiTab', this)">📊 العمولات والـ KPIs</button>
+        <button class="tab-btn" onclick="switchTab('promosTab', this)">🎁 إدارة العروض والبنرات</button>
+        <button class="tab-btn" onclick="switchTab('captainsTab', this)">👥 إدارة الكباتن</button>
+        <button class="tab-btn" onclick="switchTab('driversTab', this)">🛵 إدارة الطيارين</button>
+        <button class="tab-btn" onclick="switchTab('stockTab', this)">📦 إدارة المخزن</button>
+        <button class="tab-btn" onclick="switchTab('bomTab', this)">🍔 أصناف المنيو والأسعار</button>
+    </div>
+
+    <!-- العمولات -->
+    <div id="kpiTab" class="tab-content active">
+        <h3>📊 تقرير الأداء المبيعاتي والعمولات الشهري للكباتن</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>اسم الكابتن</th>
+                    <th>التارجت الشهري</th>
+                    <th>المبيعات الحالية</th>
+                    <th>نسبة التحقيق</th>
+                    <th>العمولة المستحقة</th>
+                </tr>
+            </thead>
+            <tbody id="kpiReportList"></tbody>
+        </table>
+    </div>
+
+    <!-- العروض والبنرات -->
+    <div id="promosTab" class="tab-content">
+        <h3>🎁 نشر عروض جديدة على أبلكيشن العملاء</h3>
+        <div style="max-width: 500px;">
+            <label>عنوان العرض:</label>
+            <input type="text" id="promoTitle" placeholder="مثال: عرض طاجن ليلة الخميس">
+            <label>وصف العرض:</label>
+            <input type="text" id="promoDesc" placeholder="مثال: خصم 15% على جميع الطواجن والمشويات">
+            <label>رابط صورة العرض (URL):</label>
+            <input type="text" id="promoImg" placeholder="https://example.com/banner.jpg">
+            <button class="btn-save" onclick="savePromotion()">نشر العرض على الأبلكيشن 🚀</button>
+        </div>
+        <table>
+            <thead><tr><th>العنوان</th><th>الوصف</th><th>حالة العرض</th></tr></thead>
+            <tbody id="promosList"></tbody>
+        </table>
+    </div>
+
+    <!-- الكباتن -->
+    <div id="captainsTab" class="tab-content">
+        <h3>👥 إعداد الكباتن والعمولات</h3>
+        <div style="max-width: 500px;">
+            <label>اسم الكابتن:</label><input type="text" id="capName">
+            <label>رقم الهاتف:</label><input type="text" id="capPhone">
+            <label>التارجت الشهري:</label><input type="number" id="capTarget" value="0">
+            <label>نسبة العمولة الأساسية (%):</label><input type="number" id="capBaseRate" value="0">
+            <label>نسبة البونص (%):</label><input type="number" id="capAccRate" value="0">
+            <button class="btn-save" onclick="saveCaptain()">حفظ الكابتن 💾</button>
+        </div>
+        <table>
+            <thead><tr><th>اسم الكابتن</th><th>الهاتف</th><th>التارجت</th><th>النسبة الأساسية</th></tr></thead>
+            <tbody id="captainsList"></tbody>
+        </table>
+    </div>
+
+    <!-- الطيارين -->
+    <div id="driversTab" class="tab-content">
+        <h3>🛵 إدارة طياري الديليفري</h3>
+        <div style="max-width: 500px;">
+            <label>اسم الطيار:</label><input type="text" id="driverName">
+            <label>رقم الهاتف:</label><input type="text" id="driverPhone">
+            <button class="btn-save" onclick="saveDriver()">حفظ الطيار 💾</button>
+        </div>
+        <table>
+            <thead><tr><th>اسم الطيار</th><th>رقم الهاتف</th></tr></thead>
+            <tbody id="driversList"></tbody>
+        </table>
+    </div>
+
+    <!-- المخزن -->
+    <div id="stockTab" class="tab-content">
+        <h3>📦 إدارة المخزن والخامات</h3>
+        <div style="max-width: 500px;">
+            <label>اسم الخامة:</label><input type="text" id="matName">
+            <label>الوحدة:</label><select id="matUnit"><option value="كيلو">كيلو</option><option value="عدد">عدد</option></select>
+            <label>التكلفة:</label><input type="number" id="matCost" value="0">
+            <label>الكمية المتاحة:</label><input type="number" id="matStock" value="0">
+            <label>حد الأمان:</label><input type="number" id="matMin" value="5">
+            <button class="btn-save" onclick="saveMaterial()">حفظ الخامة 💾</button>
+        </div>
+        <table>
+            <thead><tr><th>اسم الخامة</th><th>الوحدة</th><th>التكلفة</th><th>الرصيد</th></tr></thead>
+            <tbody id="materialsList"></tbody>
+        </table>
+    </div>
+
+    <!-- BOM المنيو والأسعار -->
+    <div id="bomTab" class="tab-content">
+        <h3>🍔 التحكم في أسعار الأصناف والمنيو</h3>
+        <div style="max-width: 500px;">
+            <label>الصنف:</label><input type="text" id="itemName">
+            <label>القسم:</label>
+            <select id="itemDept">
+                <option value="طواجن">طواجن</option>
+                <option value="الجريل">الجريل</option>
+                <option value="مشويات">مشويات</option>
+                <option value="المكرونة">المكرونة</option>
+                <option value="الأرز">الأرز</option>
+            </select>
+            <label>السعر (ج.م):</label><input type="number" id="itemPrice" value="0">
+            <button class="btn-save" onclick="saveBomItem()">تحديث السعر والمنيو 💾</button>
+        </div>
+        <table>
+            <thead><tr><th>اسم الصنف</th><th>القسم</th><th>السعر الحالي</th></tr></thead>
+            <tbody id="menuItemsList"></tbody>
+        </table>
+    </div>
+
+    <script>
+        function switchTab(tabId, btn) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            btn.classList.add('active');
+
+            if (tabId === 'kpiTab') loadKpiReport();
+            if (tabId === 'promosTab') loadPromotions();
+            if (tabId === 'captainsTab') loadCaptains();
+            if (tabId === 'driversTab') loadDrivers();
+            if (tabId === 'stockTab') loadMaterials();
+            if (tabId === 'bomTab') loadMenuItems();
+        }
+
+        async function loadKpiReport() {
+            const res = await fetch('/api/kpi-report'); const data = await res.json();
+            const tbody = document.getElementById('kpiReportList'); tbody.innerHTML = '';
+            data.forEach(item => {
+                tbody.innerHTML += `<tr><td>${item.captain_name}</td><td>${item.monthly_target} ج.م</td><td style="color:#28a745;">${item.total_sales} ج.م</td><td>${item.achievement_pct}%</td><td style="color:#ffc107;">${item.calculated_commission} ج.م</td></tr>`;
+            });
+        }
+
+        async function loadPromotions() {
+            const res = await fetch('/api/promotions'); const data = await res.json();
+            const tbody = document.getElementById('promosList'); tbody.innerHTML = '';
+            data.forEach(p => {
+                tbody.innerHTML += `<tr><td>${p.title}</td><td>${p.description}</td><td style="color:#28a745;">نشط ✅</td></tr>`;
+            });
+        }
+
+        async function loadCaptains() {
+            const res = await fetch('/api/captains'); const data = await res.json();
+            const tbody = document.getElementById('captainsList'); tbody.innerHTML = '';
+            data.forEach(c => {
+                tbody.innerHTML += `<tr><td>${c.name}</td><td>${c.phone || '-'}</td><td>${c.monthly_target} ج.م</td><td>${c.base_commission_rate}%</td></tr>`;
+            });
+        }
+
+        async function loadDrivers() {
+            const res = await fetch('/api/drivers'); const data = await res.json();
+            const tbody = document.getElementById('driversList'); tbody.innerHTML = '';
+            data.forEach(d => {
+                tbody.innerHTML += `<tr><td>${d.name}</td><td>${d.phone || '-'}</td></tr>`;
+            });
+        }
+
+        async function loadMaterials() {
+            const res = await fetch('/api/materials'); const data = await res.json();
+            const tbody = document.getElementById('materialsList'); tbody.innerHTML = '';
+            data.forEach(m => { tbody.innerHTML += `<tr><td>${m.name}</td><td>${m.unit}</td><td>${m.cost_per_unit}</td><td>${m.stock_qty}</td></tr>`; });
+        }
+
+        async function loadMenuItems() {
+            const res = await fetch('/api/items'); const data = await res.json();
+            const tbody = document.getElementById('menuItemsList'); tbody.innerHTML = '';
+            data.forEach(i => { tbody.innerHTML += `<tr><td>${i.name}</td><td>${i.department}</td><td style="color:#28a745;">${i.price} ج.م</td></tr>`; });
+        }
+
+        async function savePromotion() {
+            const title = document.getElementById('promoTitle').value;
+            const description = document.getElementById('promoDesc').value;
+            const image_url = document.getElementById('promoImg').value;
+            await fetch('/api/promotions', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ title, description, image_url })
+            });
+            alert('تم نشر العرض بنجاح!'); loadPromotions();
+        }
+
+        async function saveCaptain() {
+            await fetch('/api/captains', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ name: document.getElementById('capName').value, phone: document.getElementById('capPhone').value, monthly_target: document.getElementById('capTarget').value, base_commission_rate: document.getElementById('capBaseRate').value, accelerator_rate: document.getElementById('capAccRate').value })
+            });
+            alert('تم الحفظ!'); loadCaptains();
+        }
+
+        async function saveDriver() {
+            await fetch('/api/drivers', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ name: document.getElementById('driverName').value, phone: document.getElementById('driverPhone').value })
+            });
+            alert('تم الحفظ!'); loadDrivers();
+        }
+
+        async function saveMaterial() {
+            await fetch('/api/materials', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ name: document.getElementById('matName').value, unit: document.getElementById('matUnit').value, cost_per_unit: document.getElementById('matCost').value, stock_qty: document.getElementById('matStock').value, min_limit: document.getElementById('matMin').value })
+            });
+            loadMaterials();
+        }
+
+        async function saveBomItem() {
+            await fetch('/api/bom/save', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ item_name: document.getElementById('itemName').value, department: document.getElementById('itemDept').value, price: document.getElementById('itemPrice').value, ingredients: [] })
+            });
+            alert('تم تحديث السعر والمنيو بنجاح!'); loadMenuItems();
+        }
+
+        window.onload = loadKpiReport;
+    </script>
+</body>
+</html>

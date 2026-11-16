@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>شاشة الطيار - مطعم وجزارة نجم</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #121212; color: #fff; margin: 0; padding: 15px; }
+        h2 { color: #ffc107; text-align: center; margin-bottom: 5px; }
+        
+        .driver-bar { background: #1e1e1e; padding: 12px; border-radius: 8px; border: 1px solid #333; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
+        .user-name { color: #ffc107; font-weight: bold; font-size: 16px; }
+
+        .orders-grid { display: grid; grid-template-columns: 1fr; gap: 15px; }
+        .order-card { background: #1e1e1e; border: 1px solid #333; border-radius: 8px; padding: 15px; border-right: 5px solid #17a2b8; }
+        .order-header { display: flex; justify-content: space-between; font-weight: bold; color: #ffc107; font-size: 16px; margin-bottom: 8px; }
+        
+        .client-info { background: #252525; padding: 10px; border-radius: 6px; margin: 8px 0; font-size: 13px; line-height: 1.5; }
+        .items-list { background: #151515; padding: 8px; border-radius: 6px; margin: 8px 0; font-size: 12px; }
+        .item-row { display: flex; justify-content: space-between; border-bottom: 1px dashed #333; padding: 4px 0; }
+
+        .btn-map { background: #17a2b8; color: #fff; padding: 8px 12px; border-radius: 5px; text-decoration: none; font-weight: bold; font-size: 13px; display: inline-block; margin-top: 5px; }
+        .btn-done { background: #28a745; color: #fff; border: none; padding: 10px; border-radius: 5px; font-weight: bold; cursor: pointer; width: 100%; margin-top: 10px; font-size: 14px; }
+        .btn-logout { background: #dc3545; color: #fff; padding: 6px 12px; border-radius: 4px; text-decoration: none; font-size: 12px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <h2>🛵 شاشة الطيارين - مطعم وجزارة نجم</h2>
+
+    <div class="driver-bar">
+        <div>مرحباً: <span class="user-name" id="driverNameDisplay">...</span></div>
+        <a href="/logout" class="btn-logout">تسجيل الخروج 🚪</a>
+    </div>
+
+    <div style="color:#ffc107; font-weight:bold; margin-bottom:10px;">الطلبات المخصصة لك:</div>
+    <div class="orders-grid" id="driverOrdersContainer"></div>
+
+    <script>
+        let currentDriverName = '';
+
+        async function initDriverPage() {
+            const userRes = await fetch('/api/current-user');
+            const userData = await userRes.json();
+            if (!userData.logged_in) {
+                window.location.href = '/login';
+                return;
+            }
+
+            currentDriverName = userData.full_name || userData.username;
+            document.getElementById('driverNameDisplay').innerText = currentDriverName;
+
+            fetchDriverOrders();
+            setInterval(fetchDriverOrders, 4000);
+        }
+
+        async function fetchDriverOrders() {
+            const container = document.getElementById('driverOrdersContainer');
+
+            try {
+                const res = await fetch('/api/orders');
+                const orders = await res.json();
+                
+                // تصفية الطلبات المخصصة فقط للطيار المسجل حالياً
+                const myOrders = orders.filter(o => o.order_type === 'delivery' && (o.driver_name === currentDriverName || currentDriverName === 'إسلام نجم') && o.order_status !== 'delivered');
+
+                if (myOrders.length === 0) {
+                    container.innerHTML = '<p style="color:#888; text-align:center;">لا توجد طلبات نشطة مسندة لك حالياً.</p>';
+                    return;
+                }
+
+                container.innerHTML = '';
+                myOrders.forEach(ord => {
+                    let itemsHtml = '';
+                    if (ord.items) {
+                        ord.items.forEach(item => {
+                            const sub = item.price * item.qty;
+                            itemsHtml += `
+                                <div class="item-row">
+                                    <span>${item.name} (${item.qty}x)</span>
+                                    <span style="color:#28a745;">${sub.toFixed(2)} ج.م</span>
+                                </div>
+                            `;
+                        });
+                    }
+
+                    let rawInfo = ord.captain_name || '';
+                    let addressText = rawInfo;
+                    let mapLink = '';
+                    if (rawInfo.includes('http')) {
+                        const parts = rawInfo.split(' - الخريطة: ');
+                        addressText = parts[0];
+                        mapLink = parts[1];
+                    }
+
+                    container.innerHTML += `
+                        <div class="order-card">
+                            <div class="order-header">
+                                <span>طلب #${ord.id}</span>
+                                <span style="color:#28a745;">${parseFloat(ord.total_amount).toFixed(2)} ج.م</span>
+                            </div>
+                            <div class="client-info">
+                                <strong>تفاصيل العميل:</strong><br>
+                                ${addressText}
+                                ${mapLink ? `<br><a href="${mapLink}" target="_blank" class="btn-map">🗺️ فتح موقع العميل على خرائط جوجل</a>` : ''}
+                            </div>
+                            <div class="items-list">
+                                <strong style="color:#ffc107;">مكونات الطلب:</strong>
+                                ${itemsHtml}
+                            </div>
+                            <button class="btn-done" onclick="completeDelivery(${ord.id})">✅ تم التسليم وتحصيل المبلغ</button>
+                        </div>
+                    `;
+                });
+            } catch (err) { console.error(err); }
+        }
+
+        async function completeDelivery(orderId) {
+            if (!confirm(`تأكيد تسليم طلب #${orderId} وإتمام التحصيل؟`)) return;
+            try {
+                const res = await fetch('/api/pay-order', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ order_id: orderId })
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    alert('تم تسليم الطلب وتقفيله بنجاح!');
+                    fetchDriverOrders();
+                }
+            } catch (err) { alert('خطأ في الاتصال'); }
+        }
+
+        window.onload = initDriverPage;
+    </script>
+</body>
+</html>

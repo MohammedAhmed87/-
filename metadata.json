@@ -1,0 +1,6 @@
+{
+  "name": "مطعم وجزارة نجم - أسم له تاريخ",
+  "description": "الموقع الرسمي لمطعم وجزارة نجم (جزارة السماح) - أشهى حواوشي، مشويات ع الفحم، طواجن وجريل بلدي، ونظام مقارنة أسعار المنيو مع المنافسين وتصدير الإكسيل.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
